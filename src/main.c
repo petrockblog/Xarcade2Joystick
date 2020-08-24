@@ -60,9 +60,9 @@ void outputAxisChange(short keyPad, int axisCode, int value) {
 }
 
 int main(int argc, char* argv[]) {
-	int rd, ctr, combo = 0;
+	int rd, ctr, comboP1, comboP2 = 0;
 	char keyStates[256];
-
+	memset(keyStates, 0, sizeof(keyStates));
 	int detach = 0;
 	int opt;
 	while ((opt = getopt(argc, argv, "+ds")) != -1) {
@@ -137,7 +137,16 @@ int main(int argc, char* argv[]) {
 				/* ----------------  Player 1 controls ------------------- */
 				/* buttons */
 				case KEY_LEFTCTRL:
-				  outputKeyPress(0,BTN_A, isPressed);
+					/* P1Start + P1Button0 = P1Select */
+					if (keyStates[KEY_1])
+					{
+						outputKeyPress(0,BTN_SELECT, isPressed);
+						comboP1 = 1;
+					}
+					else
+					{
+						outputKeyPress(0,BTN_A, isPressed);
+					}
 					break;
 				case KEY_LEFTALT:
 					outputKeyPress(0,BTN_B, isPressed);
@@ -161,7 +170,22 @@ int main(int argc, char* argv[]) {
 					outputKeyPress(0,BTN_TR, isPressed);
 					break;
 				case KEY_1:
-					outputKeyPress(0,BTN_START, isPressed);
+					/* Do nothing on key down because it could be a combo */
+					if (isPressed)
+						continue;
+
+					if (!comboP1)
+					{
+						outputKeyPress(0,BTN_START, 1);
+						uinput_gpad_sleep();
+						outputKeyPress(0,BTN_START, 0);
+					}
+					else
+					{
+						/* Ensure P1Select is released it could get stuck if start is released before BTN_A */
+						outputKeyPress(0,BTN_SELECT, 0);
+						comboP1 = 0;
+					}
 					break;
 				case KEY_3:
 					outputKeyPress(0,BTN_SELECT, isPressed);
@@ -172,7 +196,16 @@ int main(int argc, char* argv[]) {
 					break;
 				case KEY_KP6:
 				case KEY_RIGHT:
-					outputAxisChange(0,ABS_X,	value == 0 ? 2 : 4); // center or right
+					/* P1Start + P1Right = Tab */
+					if (keyStates[KEY_1])
+					{
+						uinput_kbd_write(&uinp_kbd, KEY_TAB, isPressed, EV_KEY);
+						comboP1 = 1;
+					}
+					else
+					{
+						outputAxisChange(0,ABS_X,	value == 0 ? 2 : 4); // center or right
+					}
 					break;
 				case KEY_KP8:
 				case KEY_UP:
@@ -186,7 +219,17 @@ int main(int argc, char* argv[]) {
 					/* ----------------  Player 2 controls ------------------- */
 					/* buttons */
 				case KEY_A:
-					outputKeyPress(1,BTN_A,	isPressed);
+					/* P2Start + P2Button0 = P2Select */
+					if (keyStates[KEY_2])
+					{
+						outputKeyPress(1,BTN_SELECT, isPressed);
+						comboP2 = 1;
+					}
+					else
+					{
+
+						outputKeyPress(1,BTN_A, isPressed);
+					}
 					break;
 				case KEY_S:
 					outputKeyPress(1,BTN_B, isPressed);
@@ -210,35 +253,34 @@ int main(int argc, char* argv[]) {
 					outputKeyPress(1,BTN_TR, isPressed);
 					break;
 				case KEY_2:
-					/* handle combination */
-					if (keyStates[KEY_4] && xarcdev.ev[ctr].value) {
-						uinput_kbd_write(&uinp_kbd, KEY_TAB, 1, EV_KEY);
-						uinput_kbd_sleep();
-						uinput_kbd_write(&uinp_kbd, KEY_TAB, 0, EV_KEY);
-						combo = 2;
-						continue;
+					/* P1Start + P2Start = ESC */
+					if (keyStates[KEY_1])
+					{
+						uinput_kbd_write(&uinp_kbd, KEY_ESC, isPressed, EV_KEY);
+						comboP1 = 1;
 					}
-					/* it's a key down, ignore */
-					if (xarcdev.ev[ctr].value)
-						continue;
-					if (!combo) {
-						outputKeyPress(1,BTN_START, 1);
-						uinput_gpad_sleep();
-						outputKeyPress(1,BTN_START, 0);
-					} else
-						combo--;
+					else
+					{
+						/* Do nothing on key down because it could be a combo */
+						if (isPressed)
+							continue;
+
+						if (!comboP2)
+						{
+							outputKeyPress(1,BTN_START, 1);
+							uinput_gpad_sleep();
+							outputKeyPress(1,BTN_START, 0);
+						}
+						else
+						{
+							/* Ensure P2Select is released it could get stuck if start is released before BTN_A */
+							outputKeyPress(1,BTN_SELECT, 0);
+							comboP2 = 0;
+						}
+					}
 					break;
 				case KEY_4:
-					/* it's a key down, ignore */
-					if (xarcdev.ev[ctr].value)
-						continue;
-					if (!combo) {
-						outputKeyPress(1,BTN_SELECT, 1);
-						uinput_gpad_sleep();
-						outputKeyPress(1,BTN_SELECT, 0);
-					} else
-						combo--;
-
+					outputKeyPress(1,BTN_SELECT, isPressed);
 					break;
 
 					/* joystick */
